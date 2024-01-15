@@ -13,7 +13,7 @@ impl TodoArgs {
     pub fn handle(self, db: &Database) {
         match self.command_type {
             CommandType::List(cmd) => {
-                let todo_list = db.list(&cmd);
+                let todo_list = db.list(Some(&cmd));
                 if !todo_list.is_empty() {
                     for todo in todo_list {
                         todo.print_todo();
@@ -22,9 +22,16 @@ impl TodoArgs {
                     println!("No todos");
                 }
             }
-            // TODO: add todo!
             CommandType::Add(cmd) => {
-                // cmd.title
+                let db = db.insert_todo(&cmd.title, cmd.completed);
+                let todo_list = db.list(None);
+                if !todo_list.is_empty() {
+                    for todo in todo_list {
+                        todo.print_todo();
+                    }
+                } else {
+                    println!("No todos");
+                }
             }
             // TODO: mark todo checked or uncheck
             CommandType::Mark(cmd) => {}
@@ -37,7 +44,7 @@ pub enum CommandType {
     /// List all todos with an option (todocli list --limit 5)
     List(ListCommand),
 
-    /// Add a todo item. example (todocli add "New todo")
+    /// Add a todo item use -t or --title flag: example (todocli add --title "New todo"), to automatically checked the added todo just add -c or --completed flag
     Add(AddCommand),
 
     /// Mark a todo item using the id

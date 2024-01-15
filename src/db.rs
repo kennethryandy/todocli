@@ -2,32 +2,55 @@ use rusqlite::Connection;
 
 use crate::args::ListCommand;
 
-#[derive(Clone)]
+pub const DATABASE_PATH: &str = "./src/db/database.db3";
+#[derive(Debug, Clone)]
 pub struct TodoItem {
+    id: u32,
     title: String,
-    completed: u8,
+    status: u8,
 }
 
 impl TodoItem {
     pub fn print_todo(&self) {
-        let complete = if self.completed == 1 { "x" } else { " " };
-        println!("* [{}] Title: {}", complete, self.title);
+        let complete = if self.status == 1 { "x" } else { " " };
+        println!("#{}[{}] - {}", self.id, complete, self.title);
         println!("----------------------------------------");
     }
 }
 
-pub const DATABASE_PATH: &str = "./src/db/database.db3";
+// struct TodoList {
+//     todos: Vec<TodoItem>,
+// }
+
+// impl TodoList {
+//     fn new(todos: &Vec<TodoItem>) -> Self {
+//         Self {
+//             todos: todos.to_vec(),
+//         }
+//     }
+
+//     fn add(mut self, todo: TodoItem) -> Self {
+//         self.todos.push(todo);
+//         return self;
+//     }
+
+//     pub fn list(&self) -> &Vec<TodoItem> {
+//         &self.todos
+//     }
+// }
 
 #[derive(Debug)]
 pub struct Database {
     db: Connection,
+    current_todos: Vec<TodoItem>,
 }
 
 impl Database {
-    pub fn list(&self, params: &ListCommand) -> Vec<TodoItem> {
+    pub fn list(&self, params: Option<&ListCommand>) -> Vec<TodoItem> {
         let mut sql = String::from("SELECT * FROM todos");
-        if params.limit.is_some() {
-            let limit_count = params.limit.unwrap();
+        // let Some(val) = params;
+        if params.is_some_and(|p| p.limit.is_some()) {
+            let limit_count = params.unwrap().limit.unwrap();
             let limit = format!("LIMIT {}", limit_count);
             sql += &limit;
         }
@@ -35,16 +58,35 @@ impl Database {
             .db
             .prepare(&sql)
             .expect("Something went wrong while getting the todo list");
+
+        let todo_result = stmt
+            .query_map([], |row| {
+                Ok(TodoItem {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    status: row.get(2)?,
+                })
+            })
+            .unwrap();
+
         let mut todos: Vec<TodoItem> = Vec::new();
-        let _ = stmt.query_map([], |row| {
-            let todo = TodoItem {
-                title: row.get(0)?,
-                completed: row.get(1)?,
-            };
-            todos.push(todo.to_owned());
-            Ok(todo)
-        });
+        for todo in todo_result {
+            todos.push(todo.unwrap());
+        }
+
         return todos;
+    }
+
+    pub fn insert_todo(&self, title: &str, is_completed: bool) -> &Self {
+        let res = self
+            .db
+            .execute(
+                "INSERT INTO todos (title, status) VALUES (?1, ?2)",
+                (title, is_completed),
+            )
+            .expect("Something went wrong while inserting todo");
+        println!("{:?}", res);
+        return self;
     }
 
     fn new(db: Connection) -> Self {
@@ -57,13 +99,14 @@ impl Database {
             [],
         )
         .unwrap();
-        Self { db }
+        Self {
+            db,
+            current_todos: Vec::new(),
+        }
     }
 }
 
 pub fn connect() -> Database {
-    // let conn = Connection::open_in_memory();
     let conn: Database = Database::new(Connection::open(DATABASE_PATH).unwrap());
-
     return conn;
 }
