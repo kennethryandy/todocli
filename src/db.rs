@@ -5,9 +5,9 @@ use crate::args::ListCommand;
 pub const DATABASE_PATH: &str = "./src/db/database.db3";
 #[derive(Debug, Clone)]
 pub struct TodoItem {
-    id: u32,
-    title: String,
-    status: u8,
+    pub id: u32,
+    pub title: String,
+    pub status: u8,
 }
 
 impl TodoItem {
@@ -42,7 +42,7 @@ impl TodoItem {
 #[derive(Debug)]
 pub struct Database {
     db: Connection,
-    current_todos: Vec<TodoItem>,
+    // current_todos: Vec<TodoItem>,
 }
 
 impl Database {
@@ -89,6 +89,52 @@ impl Database {
         return self;
     }
 
+    pub fn get_todo(&self, id: u32) -> Option<TodoItem> {
+        let mut stmt = self
+            .db
+            .prepare("SELECT * FROM todos WHERE id=:id;")
+            .expect("Something went wrong fetching the todo by id.");
+        let todo_res = stmt
+            .query_map(&[(":id", &id.to_string())], |row| {
+                Ok(TodoItem {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    status: row.get(2)?,
+                })
+            })
+            .expect("Todo by id does not exist.");
+        for todo in todo_res {
+            let found_todo = todo.unwrap();
+            return Some(found_todo);
+        }
+        None
+    }
+
+    pub fn mark_todo(&self, todo: TodoItem) -> Result<TodoItem, String> {
+        let status = if todo.status == 1 { 0 } else { 1 };
+        let mut stmt = self
+            .db
+            .prepare("UPDATE todos SET status = ?1 WHERE id = ?2")
+            .expect("Something went wrong while preparing updating the todo.");
+        let res = stmt.execute([status, todo.id]);
+        if res.is_ok() {
+            return Ok(todo);
+        }
+
+        Err("Something went wrong".to_owned())
+    }
+
+    pub fn print_todos(&self) {
+        let todo_list = self.list(None);
+        if !todo_list.is_empty() {
+            for t in todo_list {
+                t.print_todo();
+            }
+        } else {
+            println!("No todos");
+        }
+    }
+
     fn new(db: Connection) -> Self {
         db.execute(
             "CREATE TABLE IF NOT EXISTS todos (
@@ -101,7 +147,7 @@ impl Database {
         .unwrap();
         Self {
             db,
-            current_todos: Vec::new(),
+            // current_todos: Vec::new(),
         }
     }
 }

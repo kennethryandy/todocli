@@ -1,6 +1,6 @@
 use clap::{Args, Parser, Subcommand};
 
-use crate::db::{Database, TodoItem};
+use crate::db::Database;
 
 #[derive(Debug, Parser)]
 #[clap(author, version, about)]
@@ -24,17 +24,24 @@ impl TodoArgs {
             }
             CommandType::Add(cmd) => {
                 let db = db.insert_todo(&cmd.title, cmd.completed);
-                let todo_list = db.list(None);
-                if !todo_list.is_empty() {
-                    for todo in todo_list {
-                        todo.print_todo();
-                    }
-                } else {
-                    println!("No todos");
-                }
+                db.print_todos();
             }
             // TODO: mark todo checked or uncheck
-            CommandType::Mark(cmd) => {}
+            CommandType::Mark(cmd) => {
+                match db.get_todo(cmd.id) {
+                    Some(todo) => match db.mark_todo(todo) {
+                        Ok(td) => {
+                            println!("Todo {} updated sucessfully!", td.id);
+                            println!("----------------------------------------");
+                            db.print_todos();
+                        }
+                        Err(err) => {
+                            panic!("{}", err);
+                        }
+                    },
+                    None => panic!("Todo by id does not exist."),
+                };
+            }
         }
     }
 }
