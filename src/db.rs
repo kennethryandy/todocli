@@ -51,7 +51,7 @@ impl Database {
         // let Some(val) = params;
         if params.is_some_and(|p| p.limit.is_some()) {
             let limit_count = params.unwrap().limit.unwrap();
-            let limit = format!("LIMIT {}", limit_count);
+            let limit = format!(" LIMIT {}", limit_count);
             sql += &limit;
         }
         let mut stmt = self
