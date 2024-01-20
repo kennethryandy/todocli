@@ -7,7 +7,7 @@ A simple command-line todo application written in Rust.
 After forking and cloning the repository run these commands.
 
 ```bash
-cargo install --path .             # Make sure you have rust install on your machine
+cargo install --path .             # Make sure you have rust installed on your machine
 ```
 
 ## Usage
